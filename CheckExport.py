@@ -95,7 +95,111 @@ db_duration=int((stop-start).seconds)
 exported_duration=tested_line[headers_as_dict['duration']]
 assert (str(db_duration).lower()==str(exported_duration).lower()),'ERROR --> duration based DB calculation, is not the same as in Exported CSV file!!!'
 
+# Check network durations
+all_json_durations=replay_report['transactionSummaries']
+all_duration_as_dic={}
+for i in all_json_durations:
+    all_duration_as_dic.update({i['transactionName']:round(i['transactionDuration']/1000.0,1)})
+for key in all_duration_as_dic.keys():
+    assert (str(all_duration_as_dic[key])==str(tested_line[headers_as_dict[key]])),'ERROR --> duration '+key+' is not the same as in Exported CSV file!!!'
+
+
+
+# # Check Most Impacted Resources (MIR) values
+# mirs_as_dict={}
+# mirs=replay_report['criticalResources']
+# networks=['WiFi','3G Typical']
+# counter=0
+# for mir in mirs:
+#     counter+=1
+#     for m in mir:
+#         if m=='minDuration':
+#             mirs_as_dict.update({'mir'+str(counter)+' WiFi':mir[m]})
+#         if m=='durationIncrease':
+#             mirs_as_dict.update({'mir'+str(counter)+' %':mir[m]})
+#         if m=='maxDuration':
+#             mirs_as_dict.update({'mir'+str(counter)+' 3G Typical':mir[m]})
+# for key in mirs_as_dict:
+#     assert (float(mirs_as_dict[key])==float(tested_line[headers_as_dict[key]])),'ERROR --> duration '+key+' is not the same as in Exported CSV file!!!'
+#
+#
+#
+
+# def GET_ALL_SCRIPS_FROM_HEAD_HTML_TAG(data):
+#     soup = BeautifulSoup.BeautifulSOAP(data)
+#     divs = soup.findAll('li')
+#     for div in divs:
+#         print div
+#     # for div in mydivs:
+#     #     try:
+#     #         if (div["id"]=="SampleRulesList"):
+#     #             INSERT_TO_LOG_UTF('log.txt','------------------------')
+#     #             INSERT_TO_LOG_UTF('log.txt',div)
+#     #             print str(div)[0:5]
+#     #     except:
+#     #         pass
+#
+# DELETE_LOG_CONTENT('log.txt')
+# html=open(nv_report_file,'r').read()
+# GET_ALL_SCRIPS_FROM_HEAD_HTML_TAG(html)
+
+# log_file='log.txt'
+# DELETE_LOG_CONTENT(log_file)
+# for line in html_data:
+#     if '<label id="ruleName"' in line and '</label>' in line and 'define' not in line:
+#         INSERT_TO_LOG_UTF(log_file,'-------------------------')
+#         line_index=html_data.index(line)
+#         for i in xrange(line_index-5,line_index+5):
+#             INSERT_TO_LOG_UTF(log_file,html_data[i].decode('utf-8','ignore').strip())
 
 
 
 
+###   Check all rules ###
+#mapping rule names to numbers as in rules csv file
+rules_mapping_dict={}
+rules_mapping_reverce_dict={}
+rules_csv_data=READ_CSV_AS_NESTED_LIST(rules_csv_file)
+for item in rules_csv_data:
+    rules_mapping_dict.update({item[1]:item[0]})
+    rules_mapping_reverce_dict.update({item[0]:item[1]})
+# Gett all rules sections from report HTML
+rules_sections=[]
+for line in html_data:
+    section=[]
+    if '<label id="ruleName"' in line and '</label>' in line and 'define' not in line:
+        line_index=html_data.index(line)
+        for i in xrange(line_index-5,line_index+15):
+            section.append(html_data[i].decode('utf-8','ignore').strip())
+        rules_sections.append(section)
+
+# "parse data from html report"
+rules_and_values_as_dict={}
+for sec in rules_sections:
+    section_name=[item for item in sec if "ruleName" in item]
+    section_name=section_name[0].split('ruleName">')[1].split('</label>')[0]
+    section_violations=[item for item in sec if 'score_' in item]
+    section_violations=section_violations[0].split('>')[1].split('<')[0]
+    section_score=[item for item in sec if 'score_' in item]
+    section_score=section_score[0].split('_')[1].split('"')[0]
+    section_pts='0'
+    if "points" in str(sec):
+        section_pts=[item for item in sec if 'points' in item]
+        section_pts=sec[sec.index(section_pts[0])-1].split('-')[1].split('<')[0]
+    section_name=section_name.replace('\\','')
+    if section_name in rules_mapping_dict.keys():
+        key_as_in_exported_csv='rule'+rules_mapping_dict[section_name]
+        rules_and_values_as_dict.update({key_as_in_exported_csv+' violations':section_violations})
+        rules_and_values_as_dict.update({key_as_in_exported_csv+' pts':section_pts})
+        rules_and_values_as_dict.update({key_as_in_exported_csv+' score':section_score})
+    else:
+        print '*** ACHTUNG ACHTUNG '+section_name+' not in Exported CSV file!!! ***'
+# Make assertions
+for key in rules_and_values_as_dict.keys():
+    #print rules_mapping_reverce_dict[key.split(' ')[0].split('rule')[1]]+' --> '+str(rules_and_values_as_dict[key])+'\t'+key+' --> '+str(tested_line[headers_as_dict[key]])
+    #assert (str(rules_and_values_as_dict[key])==str(tested_line[headers_as_dict[key]])),'ERROR --> '+key+' is not the same as in Exported CSV file!!!'
+    if (str(rules_and_values_as_dict[key])==str(tested_line[headers_as_dict[key]])):
+        #print rules_mapping_reverce_dict[key.split(' ')[0].split('rule')[1]]+' --> '+str(rules_and_values_as_dict[key])+'\t'+key+' --> '+str(tested_line[headers_as_dict[key]]),'PASS'
+        pass
+    else:
+        print rules_mapping_reverce_dict[key.split(' ')[0].split('rule')[1]]+' --> '+str(rules_and_values_as_dict[key])+'\t'+key+' --> '+str(tested_line[headers_as_dict[key]]),'FAILED'
