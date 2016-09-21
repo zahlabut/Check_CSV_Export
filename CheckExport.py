@@ -40,7 +40,7 @@ for h in exported_csv_headers:
     headers_as_dict.update({h:exported_csv_headers.index(h)})
 SPEC_PRINT(headers_as_dict.keys())
 tested_id=raw_input('Please enter your session ID (0682141b-43ef-4e40-a01d-58420e3c06da): ')
-tested_id='0682141b-43ef-4e40-a01d-58420e3c06da'
+tested_id='37d08666-a0b5-45b3-98d1-53006777dbd2'
 for line in exported_csv_data:
     if line[headers_as_dict['id']]==tested_id:
         tested_line=line
@@ -61,13 +61,12 @@ db_start_time=RUN_SQL(pg_db_name,pg_user,pg_ip,pg_pwd,pg_port,sql)[1][0]['create
 exported_start_time=tested_line[headers_as_dict['start_time']]
 assert (db_start_time==exported_start_time),'ERROR --> start time in DB is not the same as in Exported CSV file!!!'
 
-# # Check device_type, DB based value
-# sql="select properties from devices where id=(select device_id from sessions where id='"+tested_id+"');"
-# db_device_type=RUN_SQL(pg_db_name,pg_user,pg_ip,pg_pwd,pg_port,sql)[1][0]['properties']
-# exported_device_type=tested_line[headers_as_dict['device_type']]
-# print db_device_type
-# print exported_device_type
-# assert (exported_device_type.lower() in db_device_type),'ERROR --> devuce type in DB is not the same as in Exported CSV file!!!'
+# Check device_type, DB based value
+sql="select properties from devices where id=(select device_id from sessions where id='"+tested_id+"');"
+db_device_type=RUN_SQL(pg_db_name,pg_user,pg_ip,pg_pwd,pg_port,sql)[1][0]['properties']
+exported_device_type=tested_line[headers_as_dict['device_type']]
+assert (exported_device_type.lower() in db_device_type.lower()),'ERROR --> devuce type in DB is not the same as in Exported CSV file!!!'
+
 
 # Check abandoned, DB based value
 sql="select abandoned from sessions where id='"+tested_id+"';"
@@ -105,53 +104,22 @@ for key in all_duration_as_dic.keys():
 
 
 
-# # Check Most Impacted Resources (MIR) values
-# mirs_as_dict={}
-# mirs=replay_report['criticalResources']
-# networks=['WiFi','3G Typical']
-# counter=0
-# for mir in mirs:
-#     counter+=1
-#     for m in mir:
-#         if m=='minDuration':
-#             mirs_as_dict.update({'mir'+str(counter)+' WiFi':mir[m]})
-#         if m=='durationIncrease':
-#             mirs_as_dict.update({'mir'+str(counter)+' %':mir[m]})
-#         if m=='maxDuration':
-#             mirs_as_dict.update({'mir'+str(counter)+' 3G Typical':mir[m]})
-# for key in mirs_as_dict:
-#     assert (float(mirs_as_dict[key])==float(tested_line[headers_as_dict[key]])),'ERROR --> duration '+key+' is not the same as in Exported CSV file!!!'
-#
-#
-#
-
-# def GET_ALL_SCRIPS_FROM_HEAD_HTML_TAG(data):
-#     soup = BeautifulSoup.BeautifulSOAP(data)
-#     divs = soup.findAll('li')
-#     for div in divs:
-#         print div
-#     # for div in mydivs:
-#     #     try:
-#     #         if (div["id"]=="SampleRulesList"):
-#     #             INSERT_TO_LOG_UTF('log.txt','------------------------')
-#     #             INSERT_TO_LOG_UTF('log.txt',div)
-#     #             print str(div)[0:5]
-#     #     except:
-#     #         pass
-#
-# DELETE_LOG_CONTENT('log.txt')
-# html=open(nv_report_file,'r').read()
-# GET_ALL_SCRIPS_FROM_HEAD_HTML_TAG(html)
-
-# log_file='log.txt'
-# DELETE_LOG_CONTENT(log_file)
-# for line in html_data:
-#     if '<label id="ruleName"' in line and '</label>' in line and 'define' not in line:
-#         INSERT_TO_LOG_UTF(log_file,'-------------------------')
-#         line_index=html_data.index(line)
-#         for i in xrange(line_index-5,line_index+5):
-#             INSERT_TO_LOG_UTF(log_file,html_data[i].decode('utf-8','ignore').strip())
-
+# Check Most Impacted Resources (MIR) values
+mirs_as_dict={}
+mirs=replay_report['criticalResources']
+networks=['WiFi','3G Typical']
+counter=0
+for mir in mirs:
+    counter+=1
+    for m in mir:
+        if m=='minDuration':
+            mirs_as_dict.update({'mir'+str(counter)+' WiFi':mir[m]})
+        if m=='durationIncrease':
+            mirs_as_dict.update({'mir'+str(counter)+' %':mir[m]})
+        if m=='maxDuration':
+            mirs_as_dict.update({'mir'+str(counter)+' 3G Typical':mir[m]})
+for key in mirs_as_dict:
+    assert (float(mirs_as_dict[key])==float(tested_line[headers_as_dict[key]])),'ERROR --> duration '+key+' is not the same as in Exported CSV file!!!'
 
 
 
@@ -188,18 +156,27 @@ for sec in rules_sections:
         section_pts=sec[sec.index(section_pts[0])-1].split('-')[1].split('<')[0]
     section_name=section_name.replace('\\','')
     if section_name in rules_mapping_dict.keys():
-        key_as_in_exported_csv='rule'+rules_mapping_dict[section_name]
+        key_as_in_exported_csv='rule '+rules_mapping_dict[section_name]
         rules_and_values_as_dict.update({key_as_in_exported_csv+' violations':section_violations})
         rules_and_values_as_dict.update({key_as_in_exported_csv+' pts':section_pts})
         rules_and_values_as_dict.update({key_as_in_exported_csv+' score':section_score})
     else:
         print '*** ACHTUNG ACHTUNG '+section_name+' not in Exported CSV file!!! ***'
+
+
+
+
+
+print rules_mapping_reverce_dict
+print rules_mapping_reverce_dict.keys()
+
+
 # Make assertions
 for key in rules_and_values_as_dict.keys():
     #print rules_mapping_reverce_dict[key.split(' ')[0].split('rule')[1]]+' --> '+str(rules_and_values_as_dict[key])+'\t'+key+' --> '+str(tested_line[headers_as_dict[key]])
     #assert (str(rules_and_values_as_dict[key])==str(tested_line[headers_as_dict[key]])),'ERROR --> '+key+' is not the same as in Exported CSV file!!!'
     if (str(rules_and_values_as_dict[key])==str(tested_line[headers_as_dict[key]])):
-        #print rules_mapping_reverce_dict[key.split(' ')[0].split('rule')[1]]+' --> '+str(rules_and_values_as_dict[key])+'\t'+key+' --> '+str(tested_line[headers_as_dict[key]]),'PASS'
+        #print rules_mapping_reverce_dict[key.split(' ')[1]]+' --> '+str(rules_and_values_as_dict[key])+'\t'+key+' --> '+str(tested_line[headers_as_dict[key]]),'PASS'
         pass
     else:
-        print rules_mapping_reverce_dict[key.split(' ')[0].split('rule')[1]]+' --> '+str(rules_and_values_as_dict[key])+'\t'+key+' --> '+str(tested_line[headers_as_dict[key]]),'FAILED'
+        print rules_mapping_reverce_dict[key.split(' ')[1]]+' --> '+str(rules_and_values_as_dict[key])+'\t'+key+' --> '+str(tested_line[headers_as_dict[key]]),'FAILED'
